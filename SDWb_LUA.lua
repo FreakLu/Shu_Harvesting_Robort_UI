@@ -252,5 +252,7 @@ function screen_update()
     -- =====变量显示更新=======
     vgus_vp_var_write(0x010E,5,Page0.left_fan_speed)
     vgus_vp_var_write(0x0102,5,Page0.left_filter_angle)
+    vgus_vp_var_write(0x0109,5,Page0.right_fan_speed)
+    vgus_vp_var_write(0x010A,5,Page0.right_filter_angle)
 end
 
