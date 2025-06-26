@@ -160,17 +160,34 @@ function receive_data_prosess(can_id,can_data)
     -- 1. 解析左筛面角度（Data0-Data1）
     Page0.left_filter_angle = can_data[1] * 0x100 + can_data[2]  -- 组合高低字节
     -- 电压转角度: 0-65535 -> 0-360度
-    -- local angle_value = angle_raw * 360 / 65535
+    Page0.left_filter_angle = Page0.left_filter_angle * 360 / 5000
     
     -- 2. 解析左风机转速（Data2-Data3）
     Page0.left_fan_speed = can_data[3] * 0x100 + can_data[4]  -- 组合高低字节
     
     -- -- 3. 解析状态位（Data7）
-    -- local status_byte = can_data[8]
+    local status_byte = can_data[8]
     -- -- 粮箱满状态 (bit0)
-    -- local full_state = bit.band(status_byte, 0x01)  -- bit0
+    Page0.grain_full_flag = status_byte & 0x01  -- bit0
     -- -- 粮箱空状态 (bit1)
-    -- local empty_state = bit.band(bit.rshift(status_byte, 1), 0x01)  -- bit1
+    Page0.grain_empty_flag = ( status_byte >> 1 )& 0x01  -- bit1
+	end
+
+    if can_id[1] == 0x19 and can_id[2] == 0xC1 and can_id[3] == 0xA3 and can_id[4] == 0xA2 then
+    -- 1. 解析右筛面角度（Data0-Data1）
+    Page0.right_filter_angle = can_data[1] * 0x100 + can_data[2]  -- 组合高低字节
+    -- 电流转角度: 4-20mA -> 0-360度
+    Page0.right_filter_angle = (Page0.right_filter_angle - 4) * 22.5
+    
+    -- 2. 解析右风机转速（Data2-Data3）
+    Page0.right_fan_speed = can_data[3] * 0x100 + can_data[4]  -- 组合高低字节
+    
+    -- -- 3. 解析状态位（Data7）
+    local status_byte_recv2 = can_data[8]
+    -- -- 挂钩锁定状态 (bit0)
+    Page0.hook_lock_flag = status_byte_recv2 & 0x01  -- bit0
+    -- -- 挂钩解锁状态 (bit1)
+    Page0.hook_unlock_flag = ( status_byte_recv2 >> 1 )& 0x01  -- bit1
 	end
 end
 
@@ -211,6 +228,28 @@ end
 -- end
 
 function screen_update()
+    -- =====状态标志位更新=====
+    if Page0.grain_full_flag == 1 then
+        vgus_vp_var_write(0x0150,3,1)  -- 粮箱满
+    else
+        vgus_vp_var_write(0x0150,3,0)  -- 粮箱不满
+    end
+    if Page0.grain_empty_flag == 1 then
+        vgus_vp_var_write(0x0151,3,1)  -- 粮箱空
+    else
+        vgus_vp_var_write(0x0151,3,0)  -- 粮箱不空
+    end
+    if Page0.hook_lock_flag == 1 then
+        vgus_vp_var_write(0x0152,3,1)  -- 挂钩锁定
+    else
+        vgus_vp_var_write(0x0152,3,0)  -- 挂钩未锁定
+    end
+    if Page0.hook_unlock_flag == 1 then
+        vgus_vp_var_write(0x0153,3,1)  -- 挂钩解锁
+    else
+        vgus_vp_var_write(0x0153,3,0)  -- 挂钩未解锁
+    end
+    -- =====变量显示更新=======
     vgus_vp_var_write(0x010E,5,Page0.left_fan_speed)
     vgus_vp_var_write(0x0102,5,Page0.left_filter_angle)
 end
